@@ -14,7 +14,7 @@ dotenv.config({
   path: `${process.cwd()}/../../.env`,
 });
 
-describe("gelato", function () {
+describe.only("gelato", function () {
   this.timeout(70_000);
   let provider: providers.InfuraProvider;
   let wallet: Wallet;
@@ -65,9 +65,6 @@ describe("gelato", function () {
   it("should forward a transaction", async () => {
     const tx = await gatewayTs.issue(Wallet.createRandom().address, 1n);
     const response = await relay.send(tx);
-
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
     const status = await waitForRelay(relay, response.taskId);
 
     expect(status?.isComplete).to.be.true;

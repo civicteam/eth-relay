@@ -1,17 +1,17 @@
-import { Contract, BigNumber } from "ethers";
+import { type Contract, type BigNumber } from "ethers";
 
-import { Forwarder } from "./Forwarder";
-import { EIP712Message, EIP712TypedData } from "eth-sig-util";
+import { type Forwarder } from "./Forwarder";
+import { type EIP712Message, type EIP712TypedData } from "eth-sig-util";
 import {
-  TypedDataField,
-  TypedDataSigner,
+  type TypedDataField,
+  type TypedDataSigner,
 } from "@ethersproject/abstract-signer";
 
-type Input = {
+interface Input {
   from: string;
   to: string;
   data: string;
-};
+}
 
 const eip712Domain = [
   { name: "name", type: "string" },
@@ -52,11 +52,13 @@ const getMetaTxTypeData = (
   primaryType: "ForwardRequest",
 });
 
-function signTypedData(signer: TypedDataSigner, data: EIP712TypedData) {
-  const types = { ForwardRequest: forwardRequest } as Record<
-    string,
-    Array<TypedDataField>
-  >;
+async function signTypedData(
+  signer: TypedDataSigner,
+  data: EIP712TypedData
+): Promise<string> {
+  const types: Record<string, TypedDataField[]> = {
+    ForwardRequest: forwardRequest,
+  };
 
   return signer._signTypedData(data.domain, types, data.message);
 }

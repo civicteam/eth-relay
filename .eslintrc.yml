@@ -1,0 +1,31 @@
+env:
+  browser: true
+  es2021: true
+extends:
+  - standard-with-typescript
+  - plugin:prettier/recommended
+plugins:
+  - prettier
+ignorePatterns:
+  - "packages/core/src/lib/Forwarder.ts"
+  - "packages/core/src/lib/common.ts"
+parser: "@typescript-eslint/parser"
+parserOptions:
+  ecmaVersion: latest
+  sourceType: module
+  project: [./tsconfig.json]
+rules:
+  "@typescript-eslint/strict-boolean-expressions":
+    - error
+    - allowNullableObject: true
+  "@typescript-eslint/return-await":
+    - error
+    - in-try-catch
+overrides:
+  - files:
+      - "**/test/**/*.ts"
+    rules:
+      "@typescript-eslint/no-unused-expressions":
+        - off
+      "@typescript-eslint/no-non-null-assertion":
+        - off

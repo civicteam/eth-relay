@@ -4,8 +4,9 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "build": "tsup src",
-    "test": "mocha"
+    "build": "tsup src --dts",
+    "test": "mocha",
+    "lint": "eslint -c ../../.eslintrc.yml --ext .ts src test"
   },
   "dependencies": {
     "@biconomy/mexa": "^3.0.5",

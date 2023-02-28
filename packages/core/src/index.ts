@@ -1,35 +1,66 @@
-import {Relayer, RelayerBuilder, RelayResponse, RelayStatus} from "./types";
-import {Wallet} from "ethers";
+import {
+  type Relayer,
+  type RelayerBuilder,
+  type RelayResponse,
+  type RelayStatus,
+} from "./types";
+import { type Wallet } from "ethers";
 
-export const Relayers = (relayers: (RelayerBuilder<RelayResponse, RelayStatus, any> | Promise<RelayerBuilder<RelayResponse, RelayStatus, any>>)[]) => {
-    const cachedRelayerForChain: Record<number, Relayer<RelayResponse, RelayStatus, any>> = {};
+interface RelayersResult {
+  for: (
+    chainId: number,
+    wallet: Wallet
+  ) => Promise<Relayer<RelayResponse, RelayStatus> | null>;
+}
+export const Relayers = (
+  relayers: Array<
+    | RelayerBuilder<RelayResponse, RelayStatus>
+    | Promise<RelayerBuilder<RelayResponse, RelayStatus>>
+  >
+): RelayersResult => {
+  const cachedRelayerForChain: Record<
+    number,
+    Relayer<RelayResponse, RelayStatus>
+  > = {};
 
-    return {
-        for: async (chainId: number, wallet: Wallet):Promise<Relayer<RelayResponse, RelayStatus, any> | null> => {
-            if (cachedRelayerForChain[chainId]) {
-                return cachedRelayerForChain[chainId];
-            }
+  return {
+    for: async (
+      chainId: number,
+      wallet: Wallet
+    ): Promise<Relayer<RelayResponse, RelayStatus> | null> => {
+      if (cachedRelayerForChain[chainId] !== undefined) {
+        return cachedRelayerForChain[chainId];
+      }
 
-            for (const relayerBuilder of relayers) {
-                const relayer = await (await relayerBuilder)(chainId, wallet);
-                if (await relayer.supportsChain(chainId)) {
-                    cachedRelayerForChain[chainId] = relayer;
-                    return relayer;
-                }
-            }
-
-            return null;
+      for (const relayerBuilder of relayers) {
+        const relayer = await (await relayerBuilder)(chainId, wallet);
+        if (await relayer.supportsChain(chainId)) {
+          cachedRelayerForChain[chainId] = relayer;
+          return relayer;
         }
-    }
-}
+      }
 
-export const waitForRelay = async (relayer: Relayer<RelayResponse, RelayStatus, any>, taskId: string, pollPeriod = 5000, stopAfter = 60_000) => {
-    let stopAt = Date.now() + stopAfter;
-    let status: RelayStatus = {isComplete: false, isError: false, transactionHash: undefined};
-    while (!status.isComplete && Date.now() < stopAt) {
-        status = await relayer.lookup(taskId);
-        console.log(`Relay status: ${JSON.stringify(status)}`);
-        await new Promise(resolve => setTimeout(resolve, pollPeriod));
-    }
-    return status;
-}
+      return null;
+    },
+  };
+};
+
+export const waitForRelay = async (
+  relayer: Relayer<RelayResponse, RelayStatus>,
+  taskId: string,
+  pollPeriod = 5000,
+  stopAfter = 60_000
+): Promise<RelayStatus> => {
+  const stopAt = Date.now() + stopAfter;
+  let status: RelayStatus = {
+    isComplete: false,
+    isError: false,
+    transactionHash: undefined,
+  };
+  while (!status.isComplete && Date.now() < stopAt) {
+    status = await relayer.lookup(taskId);
+    console.log(`Relay status: ${JSON.stringify(status)}`);
+    await new Promise((resolve) => setTimeout(resolve, pollPeriod));
+  }
+  return status;
+};

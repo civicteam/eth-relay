@@ -1,14 +1,18 @@
 {
   "name": "@civic/eth-relay",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "A library encapsulating various transaction relayers on EVM chains",
   "main": "index.js",
   "author": "daniel@civic.com",
   "license": "MIT",
   "scripts": {
-    "build": "tsup src",
-    "test": "mocha"
+    "build": "tsup src --dts",
+    "test": "mocha",
+    "lint": "eslint -c ../../.eslintrc.yml --ext .ts src test"
   },
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "@identity.com/gateway-eth-ts": "^0.5.7",
     "@types/eth-sig-util": "2",
@@ -17,6 +21,7 @@
     "tsx": "^3.12.3"
   },
   "dependencies": {
+    "@gelatonetwork/1balance-sdk": "^0.4.0",
     "@gelatonetwork/relay-sdk": "^3.3.0",
     "eth-sig-util": "^2",
     "ethers": "^5"

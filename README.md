@@ -22,17 +22,19 @@ const relayers = Relayers([
     })]
 );
 
+// Get the preferred relay for the chainId
 const relay = await relayers.for(chainId, wallet);
 
+// Send a transaction
 const response = await relay.send({
     to: '0x...',
     from: '0x...',
     data: '0x...',
 });
 
-// look up tx status
+// Look up tx status
 const status = await relay.lookup(response.taskId);
 
-// wait for tx to be confirmed
+// Wait for tx to be confirmed
 await waitForRelay(relay, response.taskId);
 ```

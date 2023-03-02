@@ -1,8 +1,10 @@
 {
   "name": "@civic/eth-relay",
-  "version": "0.0.1",
+  "version": "0.0.5",
   "description": "A library encapsulating various transaction relayers on EVM chains",
-  "main": "index.js",
+  "main": "dist/index.ts",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "author": "daniel@civic.com",
   "license": "MIT",
   "scripts": {
@@ -14,7 +16,7 @@
     "dist"
   ],
   "devDependencies": {
-    "@identity.com/gateway-eth-ts": "^0.5.7",
+    "@identity.com/gateway-eth-ts": "^0.6.0-alpha.1",
     "@types/eth-sig-util": "2",
     "dotenv": "^16.0.3",
     "tsup": "^6.6.3",

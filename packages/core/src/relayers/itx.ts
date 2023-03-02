@@ -12,7 +12,7 @@ import {
   utils,
   type Wallet,
 } from "ethers";
-import { signMetaTxRequest } from "../lib/metatx";
+import { signMetaTxRequest, type StaticEIP712Domain } from "../lib/metatx";
 import { type Forwarder } from "../lib/Forwarder";
 import forwarderAbi from "../lib/forwarderAbi.json";
 
@@ -37,7 +37,10 @@ const defaultOptions: Options = {
 
 interface ITXConfig {
   apiKey: string;
-  forwarderAddress: string;
+  forwarder: {
+    address: string;
+    EIP712Domain: StaticEIP712Domain;
+  };
   options?: Partial<Options>;
 }
 
@@ -49,7 +52,7 @@ export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
     private readonly wallet: Wallet,
     private readonly apiKey: string,
 
-    private readonly forwarderAddress: string,
+    private readonly forwarder: ITXConfig["forwarder"],
     options: Partial<Options> = {}
   ) {
     this.provider = new providers.InfuraProvider(chainId, apiKey);
@@ -67,7 +70,7 @@ export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
         chainId,
         wallet,
         config.apiKey,
-        config.forwarderAddress,
+        config.forwarder,
         config.options
       );
   }
@@ -105,7 +108,7 @@ export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
     for (let i = 0; i < statusResponse.broadcasts.length; i++) {
       const bc = statusResponse.broadcasts[i];
       const receipt = await this.provider.getTransactionReceipt(bc.ethTxHash);
-      if (receipt.confirmations > 0) {
+      if (receipt?.confirmations > 0) {
         const isComplete = receipt.status === 1;
         const isError = receipt.status === 0;
         return {
@@ -147,7 +150,7 @@ export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
         "ITX requires a data field and to address in the transaction."
       );
     const forwarderContract = new Contract(
-      this.forwarderAddress,
+      this.forwarder.address,
       forwarderAbi
     ).connect(this.wallet) as Forwarder;
     const { request, signature } = await signMetaTxRequest(
@@ -157,7 +160,8 @@ export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
         from: this.wallet.address,
         to: tx.to,
         data: tx.data,
-      }
+      },
+      this.forwarder.EIP712Domain
     );
     const populatedForwardedTransaction =
       await forwarderContract.populateTransaction.execute(request, signature);
@@ -182,7 +186,7 @@ export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
 
     const request: RelayRequest = {
       ...this.itxOptions,
-      to: this.forwarderAddress,
+      to: this.forwarder.address,
       data: metaTx.data,
     };
 

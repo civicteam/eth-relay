@@ -1,7 +1,11 @@
 import { type Contract, type BigNumber } from "ethers";
 
 import { type Forwarder } from "./Forwarder";
-import { type EIP712Message, type EIP712TypedData } from "eth-sig-util";
+import {
+  type EIP712Domain,
+  type EIP712Message,
+  type EIP712TypedData,
+} from "eth-sig-util";
 import {
   type TypedDataField,
   type TypedDataSigner,
@@ -12,6 +16,11 @@ interface Input {
   to: string;
   data: string;
 }
+
+export type StaticEIP712Domain = Omit<
+  EIP712Domain,
+  "verifyingContract" | "chainId"
+>;
 
 const eip712Domain = [
   { name: "name", type: "string" },
@@ -37,15 +46,15 @@ type ForwardRequest = Input & {
 
 const getMetaTxTypeData = (
   chainId: number,
-  verifyingContract: string
+  verifyingContract: string,
+  domain: StaticEIP712Domain
 ): Omit<EIP712TypedData, "message"> => ({
   types: {
     EIP712Domain: eip712Domain,
     ForwardRequest: forwardRequest,
   },
   domain: {
-    name: "MinimalForwarder",
-    version: "0.0.1",
+    ...domain,
     chainId,
     verifyingContract,
   },
@@ -76,20 +85,22 @@ const buildRequest = async (
 
 const buildTypedData = async (
   forwarder: Contract,
-  request: EIP712Message
+  request: EIP712Message,
+  domain: StaticEIP712Domain
 ): Promise<EIP712TypedData> => {
   const chainId = await forwarder.provider.getNetwork().then((n) => n.chainId);
-  const typeData = getMetaTxTypeData(chainId, forwarder.address);
+  const typeData = getMetaTxTypeData(chainId, forwarder.address, domain);
   return { ...typeData, message: request };
 };
 
 export const signMetaTxRequest = async (
   signer: TypedDataSigner,
   forwarder: Forwarder,
-  input: Input
+  input: Input,
+  domain: StaticEIP712Domain
 ): Promise<{ request: ForwardRequest; signature: string }> => {
   const request = await buildRequest(forwarder, input);
-  const toSign = await buildTypedData(forwarder, request);
+  const toSign = await buildTypedData(forwarder, request, domain);
   const signature = await signTypedData(signer, toSign);
   return { signature, request };
 };

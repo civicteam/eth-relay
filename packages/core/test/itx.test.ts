@@ -4,6 +4,7 @@ import { ITXRelayer } from "../src/relayers/itx";
 import { providers, Wallet } from "ethers";
 import { type GenericRelayer } from "../src/types";
 import {
+  DEFAULT_FORWARDER_ADDRESS,
   DEFAULT_GATEWAY_TOKEN_ADDRESS,
   GatewayTs,
 } from "@identity.com/gateway-eth-ts";
@@ -34,7 +35,13 @@ describe("itx", function () {
     const foundRelayer = await Relayers([
       ITXRelayer.with({
         apiKey: process.env.INFURA_API_KEY!,
-        forwarderAddress: "0xdf8FfFF5837380FDfC55252A75994A7166B97e6D",
+        forwarder: {
+          address: DEFAULT_FORWARDER_ADDRESS,
+          EIP712Domain: {
+            name: "FlexibleNonceForwarder",
+            version: "0.0.1",
+          },
+        },
         options: {
           schedule: "fast",
         },

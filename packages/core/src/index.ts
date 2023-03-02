@@ -6,6 +6,10 @@ import {
 } from "./types";
 import { type Wallet } from "ethers";
 
+export { GelatoRelayer } from "./relayers/gelato";
+export { ITXRelayer } from "./relayers/itx";
+export type { RelayResponse, RelayStatus, Relayer, RelayerBuilder };
+
 interface RelayersResult {
   for: (
     chainId: number,
@@ -57,7 +61,7 @@ export const waitForRelay = async (
     isError: false,
     transactionHash: undefined,
   };
-  while (!status.isComplete && Date.now() < stopAt) {
+  while (!status.isComplete && !status.isError && Date.now() < stopAt) {
     status = await relayer.lookup(taskId);
     console.log(`Relay status: ${JSON.stringify(status)}`);
     await new Promise((resolve) => setTimeout(resolve, pollPeriod));

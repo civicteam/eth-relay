@@ -14,7 +14,7 @@ dotenv.config({
   path: `${process.cwd()}/../../.env`,
 });
 
-describe.only("gelato", function () {
+describe("gelato", function () {
   this.timeout(70_000);
   let provider: providers.InfuraProvider;
   let wallet: Wallet;
@@ -56,8 +56,6 @@ describe.only("gelato", function () {
 
   it("should get the relayer balance", async () => {
     const balance = await relay.getBalance();
-
-    console.log(balance.toString());
 
     expect(balance.gt(BigNumber.from(0))).to.be.true;
   });

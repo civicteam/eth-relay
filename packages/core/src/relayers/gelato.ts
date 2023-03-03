@@ -123,7 +123,7 @@ export class GelatoRelayer
         transactionHash: taskStatus.transactionHash,
       };
     } catch (error: any) {
-      if (error.message === "Failed with error: Status not found") {
+      if (error.message.endsWith("Failed with error: Status not found")) {
         return {
           isComplete: false,
           isError: false,

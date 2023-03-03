@@ -62,9 +62,28 @@ describe("gelato", function () {
 
   it("should forward a transaction", async () => {
     const tx = await gatewayTs.issue(Wallet.createRandom().address, 1n);
+
     const response = await relay.send(tx);
+    console.log(response)
     const status = await waitForRelay(relay, response.taskId);
 
     expect(status?.isComplete).to.be.true;
+  });
+
+  // Fails on gelato
+  it.skip("can handle transactions sent concurrently", async () => {
+    const tx1 = await gatewayTs.issue(Wallet.createRandom().address, 1n);
+    const tx2 = await gatewayTs.issue(Wallet.createRandom().address, 1n);
+    const [ response1, response2 ] = await Promise.all([
+        relay.send(tx1),
+        relay.send(tx2),
+    ]);
+    const [ status1, status2 ] = await Promise.all([
+        waitForRelay(relay, response1.taskId),
+      waitForRelay(relay, response2.taskId)
+        ]);
+
+    expect(status1?.isComplete).to.be.true;
+    expect(status2?.isComplete).to.be.true;
   });
 });

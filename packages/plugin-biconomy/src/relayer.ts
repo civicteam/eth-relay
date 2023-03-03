@@ -42,7 +42,7 @@ export class BiconomyRelayer implements Relayer<RelayResponse, RelayStatus> {
 
   static with(
     config: BiconomyConfig
-  ): RelayerBuilder<RelayResponse, RelayStatus, BiconomyConfig> {
+  ): RelayerBuilder<RelayResponse, RelayStatus> {
     return async (chainId: number, wallet: Wallet) => {
       // hack needed because Biconomy requires passing in a web3 provider,
       // in the form of an Ethers external provider.

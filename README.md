@@ -12,10 +12,26 @@ import {Relayers, waitForRelay} from "@civic/eth-relay";
 const relayers = Relayers([
     GelatoRelayer.with({
         apiKey: process.env.GELATO_API_KEY!,
+        // OPTIONAL - use only to override Gelato's default forwarder
+        forwarder: {
+            address: ERC2771_FORWARDER_ADDRESS,
+            EIP712Domain: {
+                // Your forwarder details here
+                name: 'MinimalForwarder',
+                version: '0.0.1',
+            },
+        },
     }),
     ITXRelayer.with({
         apiKey: process.env.INFURA_API_KEY!,
-        forwarderAddress: ERC2771_FORWARDER_ADDRESS,
+        forwarder: {
+            address: ERC2771_FORWARDER_ADDRESS,
+            EIP712Domain: {
+                // Your forwarder details here
+                name: 'MinimalForwarder',
+                version: '0.0.1',
+            },
+        },
         options: {
             schedule: 'fast'
         }

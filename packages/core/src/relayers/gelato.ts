@@ -1,4 +1,5 @@
 import {
+  type ForwarderConfig,
   type Relayer,
   type RelayerBuilder,
   type RelayResponse,
@@ -7,13 +8,18 @@ import {
 import { BigNumber, type PopulatedTransaction, type Wallet } from "ethers";
 import {
   GelatoRelay,
+  type SponsoredCallRequest,
   type SponsoredCallERC2771Request,
   type TransactionStatusResponse,
 } from "@gelatonetwork/relay-sdk";
 import { OneBalance } from "@gelatonetwork/1balance-sdk";
+import { createEIP2771ForwardedTransaction } from "../lib/metatx";
 
 interface GelatoConfig {
   apiKey: string;
+  // Setting a custom forwarder uses gelato.sponsoredCall instead of gelato.sponsoredCallERC2771
+  // Gelato's default forwarder does not support concurrent requests.
+  forwarder?: ForwarderConfig;
 }
 
 // extracted from Gelato SDK
@@ -36,7 +42,8 @@ export class GelatoRelayer
     private readonly wallet: Wallet,
     private readonly chainId: number,
 
-    private readonly apiKey: string
+    private readonly apiKey: string,
+    private readonly forwarder?: ForwarderConfig
   ) {
     this.gelato = new GelatoRelay();
 
@@ -69,7 +76,7 @@ export class GelatoRelayer
     config: GelatoConfig
   ): RelayerBuilder<RelayResponse, GelatoRelayStatus> {
     return async (chainId: number, wallet: Wallet) =>
-      new GelatoRelayer(wallet, chainId, config.apiKey);
+      new GelatoRelayer(wallet, chainId, config.apiKey, config.forwarder);
   }
 
   async fund(amount: BigNumber): Promise<void> {
@@ -123,7 +130,11 @@ export class GelatoRelayer
         transactionHash: taskStatus.transactionHash,
       };
     } catch (error: any) {
-      if (error.message.endsWith("Failed with error: Status not found")) {
+      if (
+        (error as { message: string }).message.endsWith(
+          "Failed with error: Status not found"
+        )
+      ) {
         return {
           isComplete: false,
           isError: false,
@@ -140,20 +151,45 @@ export class GelatoRelayer
   }
 
   async send(tx: PopulatedTransaction): Promise<RelayResponse> {
-    if (tx.data === undefined || tx.to === undefined)
-      throw new Error(
-        "Gelato requires a data field and to address in the transaction."
+    if (!this.forwarder) {
+      if (tx.data === undefined || tx.to === undefined) {
+        throw new Error(
+          "Transaction is missing data or to address - cannot be sent to Gelato"
+        );
+      }
+      // Use Gelato's forwarder - NOTE! This does not support concurrent requests.
+      const request: SponsoredCallERC2771Request = {
+        chainId: this.chainId,
+        target: tx.to,
+        data: tx.data,
+        user: this.wallet.address,
+      };
+      // send relayRequest to Gelato Relay API
+      return this.gelato.sponsoredCallERC2771(
+        request,
+        this.wallet,
+        this.apiKey
       );
+    }
 
-    const request: SponsoredCallERC2771Request = {
+    // If a forwarder is set, use sponsoredCall directly, without the Gelato forwarder
+    // Sign and wrap the tx in a metatx targeting the custom forwarder
+    const metaTx = await createEIP2771ForwardedTransaction(
+      tx,
+      this.forwarder,
+      this.wallet
+    );
+    if (metaTx.data === undefined) throw new Error("Invalid metaTx data");
+
+    // create a SponsoredCallRequest pointing to that forwarder
+    const request: SponsoredCallRequest = {
       chainId: this.chainId,
-      target: tx.to,
-      data: tx.data,
-      user: this.wallet.address,
+      target: this.forwarder.address,
+      data: metaTx.data || "",
     };
 
-    // send relayRequest to Gelato Relay API
-    return this.gelato.sponsoredCallERC2771(request, this.wallet, this.apiKey);
+    // send the request via Gelato
+    return this.gelato.sponsoredCall(request, this.apiKey);
   }
 
   async supportsChain(chainId: number): Promise<boolean> {

@@ -1,4 +1,5 @@
 import { type BigNumber, type PopulatedTransaction, type Wallet } from "ethers";
+import { type StaticEIP712Domain } from "./lib/metatx";
 
 export interface RelayResponse {
   taskId: string;
@@ -28,3 +29,8 @@ export type RelayerBuilder<R extends RelayResponse, S extends RelayStatus> = (
   chainId: number,
   wallet: Wallet
 ) => Promise<Relayer<R, S>>;
+
+export interface ForwarderConfig {
+  address: string;
+  EIP712Domain: StaticEIP712Domain;
+}

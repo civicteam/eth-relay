@@ -3,6 +3,7 @@ import { Relayers, waitForRelay } from "../src";
 import { BigNumber, providers, Wallet } from "ethers";
 import { type GenericRelayer } from "../src/types";
 import {
+  DEFAULT_FORWARDER_ADDRESS,
   DEFAULT_GATEWAY_TOKEN_ADDRESS,
   GatewayTs,
 } from "@identity.com/gateway-eth-ts";
@@ -39,6 +40,13 @@ describe("gelato", function () {
     const foundRelayer = await Relayers([
       GelatoRelayer.with({
         apiKey: process.env.GELATO_API_KEY,
+        forwarder: {
+          address: DEFAULT_FORWARDER_ADDRESS,
+          EIP712Domain: {
+            name: "FlexibleNonceForwarder",
+            version: "0.0.1",
+          },
+        },
       }),
     ]).for(provider.network.chainId, wallet); // Use mumbai as it's fast
 
@@ -64,24 +72,39 @@ describe("gelato", function () {
     const tx = await gatewayTs.issue(Wallet.createRandom().address, 1n);
 
     const response = await relay.send(tx);
-    console.log(response)
+    console.log(response);
     const status = await waitForRelay(relay, response.taskId);
 
     expect(status?.isComplete).to.be.true;
   });
 
-  // Fails on gelato
-  it.skip("can handle transactions sent concurrently", async () => {
+  // this still works but does not support concurrent transactions
+  it("should forward a transaction using the default gelato forwarder", async () => {
+    const relayerUsingDefaultGelatoForwarder = await Relayers([
+      GelatoRelayer.with({
+        apiKey: process.env.GELATO_API_KEY!,
+      }),
+    ]).for(provider.network.chainId, wallet);
+    const tx = await gatewayTs.issue(Wallet.createRandom().address, 1n);
+
+    const response = await relayerUsingDefaultGelatoForwarder!.send(tx);
+    const status = await waitForRelay(relay, response.taskId);
+
+    expect(status?.isComplete).to.be.true;
+  });
+
+  // passes with the custom forwarder but fails with the default one
+  it("can handle transactions sent concurrently", async () => {
     const tx1 = await gatewayTs.issue(Wallet.createRandom().address, 1n);
     const tx2 = await gatewayTs.issue(Wallet.createRandom().address, 1n);
-    const [ response1, response2 ] = await Promise.all([
-        relay.send(tx1),
-        relay.send(tx2),
+    const [response1, response2] = await Promise.all([
+      relay.send(tx1),
+      relay.send(tx2),
     ]);
-    const [ status1, status2 ] = await Promise.all([
-        waitForRelay(relay, response1.taskId),
-      waitForRelay(relay, response2.taskId)
-        ]);
+    const [status1, status2] = await Promise.all([
+      waitForRelay(relay, response1.taskId),
+      waitForRelay(relay, response2.taskId),
+    ]);
 
     expect(status1?.isComplete).to.be.true;
     expect(status2?.isComplete).to.be.true;

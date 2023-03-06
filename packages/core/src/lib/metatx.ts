@@ -1,4 +1,9 @@
-import { type Contract, type BigNumber } from "ethers";
+import {
+  Contract,
+  type BigNumber,
+  type PopulatedTransaction,
+  type Wallet,
+} from "ethers";
 
 import { type Forwarder } from "./Forwarder";
 import {
@@ -10,6 +15,7 @@ import {
   type TypedDataField,
   type TypedDataSigner,
 } from "@ethersproject/abstract-signer";
+import forwarderAbi from "./forwarderAbi.json";
 
 interface Input {
   from: string;
@@ -103,4 +109,36 @@ export const signMetaTxRequest = async (
   const toSign = await buildTypedData(forwarder, request, domain);
   const signature = await signTypedData(signer, toSign);
   return { signature, request };
+};
+
+export const createEIP2771ForwardedTransaction = async (
+  tx: PopulatedTransaction,
+  forwarder: { address: string; EIP712Domain: StaticEIP712Domain },
+  wallet: Wallet
+): Promise<PopulatedTransaction> => {
+  if (tx.data === undefined || tx.to === undefined)
+    throw new Error(
+      "ITX requires a data field and to address in the transaction."
+    );
+  const forwarderContract = new Contract(
+    forwarder.address,
+    forwarderAbi
+  ).connect(wallet) as Forwarder;
+  const { request, signature } = await signMetaTxRequest(
+    wallet,
+    forwarderContract,
+    {
+      from: wallet.address,
+      to: tx.to,
+      data: tx.data,
+    },
+    forwarder.EIP712Domain
+  );
+
+  const populatedForwardedTransaction =
+    await forwarderContract.populateTransaction.execute(request, signature);
+  // ethers will set the from address on the populated transaction to the current wallet address (i.e the gatekeeper)
+  // we don't want this, as the tx will be sent by some other relayer, so remove it.
+  delete populatedForwardedTransaction.from;
+  return populatedForwardedTransaction;
 };

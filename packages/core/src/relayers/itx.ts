@@ -1,4 +1,5 @@
 import {
+  type ForwarderConfig,
   type Relayer,
   type RelayerBuilder,
   type RelayResponse,
@@ -6,15 +7,12 @@ import {
 } from "../types";
 import {
   BigNumber,
-  Contract,
   type PopulatedTransaction,
   providers,
   utils,
   type Wallet,
 } from "ethers";
-import { signMetaTxRequest, type StaticEIP712Domain } from "../lib/metatx";
-import { type Forwarder } from "../lib/Forwarder";
-import forwarderAbi from "../lib/forwarderAbi.json";
+import { createEIP2771ForwardedTransaction } from "../lib/metatx";
 
 // ITX deposit contract (same address for all public Ethereum networks)
 const ITX_DEPOSIT_CONTRACT = "0x015C7C7A7D65bbdb117C573007219107BD7486f9";
@@ -37,10 +35,7 @@ const defaultOptions: Options = {
 
 interface ITXConfig {
   apiKey: string;
-  forwarder: {
-    address: string;
-    EIP712Domain: StaticEIP712Domain;
-  };
+  forwarder: ForwarderConfig;
   options?: Partial<Options>;
 }
 
@@ -52,7 +47,7 @@ export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
     private readonly wallet: Wallet,
     private readonly apiKey: string,
 
-    private readonly forwarder: ITXConfig["forwarder"],
+    private readonly forwarder: ForwarderConfig,
     options: Partial<Options> = {}
   ) {
     this.provider = new providers.InfuraProvider(chainId, apiKey);
@@ -142,42 +137,17 @@ export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
     return this.wallet.signMessage(utils.arrayify(relayTransactionHash));
   }
 
-  private async signMetaTx(
-    tx: PopulatedTransaction
-  ): Promise<PopulatedTransaction> {
-    if (tx.data === undefined || tx.to === undefined)
-      throw new Error(
-        "ITX requires a data field and to address in the transaction."
-      );
-    const forwarderContract = new Contract(
-      this.forwarder.address,
-      forwarderAbi
-    ).connect(this.wallet) as Forwarder;
-    const { request, signature } = await signMetaTxRequest(
-      this.wallet,
-      forwarderContract,
-      {
-        from: this.wallet.address,
-        to: tx.to,
-        data: tx.data,
-      },
-      this.forwarder.EIP712Domain
-    );
-    const populatedForwardedTransaction =
-      await forwarderContract.populateTransaction.execute(request, signature);
-    // ethers will set the from address on the populated transaction to the current wallet address (i.e the gatekeeper)
-    // we don't want this, as the tx will be sent by some other relayer, so remove it.
-    delete populatedForwardedTransaction.from;
-    return populatedForwardedTransaction;
-  }
-
   async send(tx: PopulatedTransaction): Promise<RelayResponse> {
     if (tx.data === undefined || tx.to === undefined)
       throw new Error(
         "ITX requires a data field and to address in the transaction."
       );
 
-    const metaTx = await this.signMetaTx(tx);
+    const metaTx = await createEIP2771ForwardedTransaction(
+      tx,
+      this.forwarder,
+      this.wallet
+    );
 
     if (metaTx.data === undefined || metaTx.to === undefined)
       throw new Error(

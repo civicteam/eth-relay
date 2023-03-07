@@ -1,6 +1,5 @@
 import * as dotenv from "dotenv";
-import { Relayers, waitForRelay } from "../src";
-import { ITXRelayer } from "../src/relayers/itx";
+import { Relayers, waitForRelay, ITXRelayer } from "../src";
 import { providers, Wallet } from "ethers";
 import { type GenericRelayer } from "../src/types";
 import {
@@ -9,7 +8,12 @@ import {
   GatewayTs,
 } from "@identity.com/gateway-eth-ts";
 import { type GatewayTsTransaction } from "@identity.com/gateway-eth-ts/dist/service/GatewayTsTransaction";
-import { expect } from "chai";
+import * as chai from "chai";
+import chaiAsPromised from "chai-as-promised";
+
+chai.use(chaiAsPromised);
+
+const { expect } = chai;
 
 dotenv.config({
   path: `${process.cwd()}/../../.env`,
@@ -59,6 +63,11 @@ describe("itx", function () {
       DEFAULT_GATEWAY_TOKEN_ADDRESS
     ).transaction();
   });
+
+  it("should throw an error with an incorrect relay task Id", () => {
+    return expect(relay.lookup("invalid")).to.be.rejectedWith("invalid");
+  });
+
 
   it("should forward a transaction", async () => {
     const tx = await gatewayTs.issue(Wallet.createRandom().address, 1n);

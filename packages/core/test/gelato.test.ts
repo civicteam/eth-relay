@@ -74,7 +74,10 @@ describe("gelato", function () {
     const response = await relay.send(tx);
     console.log(response);
     const status = await waitForRelay(relay, response.taskId);
+    const txResponse = await provider.getTransaction(status.transactionHash!);
 
+    console.log(txResponse);
+    expect(txResponse.confirmations).to.be.greaterThan(0);
     expect(status?.isComplete).to.be.true;
   });
 

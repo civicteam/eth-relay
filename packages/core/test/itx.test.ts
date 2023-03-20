@@ -68,7 +68,6 @@ describe("itx", function () {
     return expect(relay.lookup("invalid")).to.be.rejectedWith("invalid");
   });
 
-
   it("should forward a transaction", async () => {
     const tx = await gatewayTs.issue(Wallet.createRandom().address, 1n);
     const response = await relay.send(tx);

@@ -40,7 +40,7 @@ interface ITXConfig {
 }
 
 export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
-  private readonly provider: Provider;
+  private readonly provider: providers.JsonRpcProvider;
   private readonly itxOptions: Options;
   constructor(
     private readonly chainId: number,
@@ -50,7 +50,7 @@ export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
     private readonly forwarder: ForwarderConfig,
     options: Partial<Options> = {}
   ) {
-    this.provider = this.wallet.provider as Provider;
+    this.provider = this.wallet.provider as providers.JsonRpcProvider;
     this.itxOptions = {
       ...defaultOptions,
       ...options,

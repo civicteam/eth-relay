@@ -69,10 +69,11 @@ describe("gelato", function () {
   });
 
   it("should forward a transaction", async () => {
-    const tx = await gatewayTs.issue(Wallet.createRandom().address, 1n);
+    const address = Wallet.createRandom().address;
+    const tx = await gatewayTs.issue(address, 1n);
+    console.log(`Issuing a pass to ${address}`);
 
     const response = await relay.send(tx);
-    console.log(response);
     const status = await waitForRelay(relay, response.taskId);
     const txResponse = await provider.getTransaction(status.transactionHash!);
 

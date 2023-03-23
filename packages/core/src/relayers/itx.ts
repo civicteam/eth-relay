@@ -8,7 +8,7 @@ import {
 import {
   BigNumber,
   type PopulatedTransaction,
-  providers,
+  type providers,
   utils,
   type Wallet,
 } from "ethers";
@@ -40,7 +40,7 @@ interface ITXConfig {
 }
 
 export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
-  private readonly provider: providers.InfuraProvider;
+  private readonly provider: Provider;
   private readonly itxOptions: Options;
   constructor(
     private readonly chainId: number,
@@ -50,7 +50,7 @@ export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
     private readonly forwarder: ForwarderConfig,
     options: Partial<Options> = {}
   ) {
-    this.provider = new providers.InfuraProvider(chainId, apiKey);
+    this.provider = this.wallet.provider as Provider;
     this.itxOptions = {
       ...defaultOptions,
       ...options,

@@ -16,7 +16,7 @@
     "dist"
   ],
   "devDependencies": {
-    "@identity.com/gateway-eth-ts": "^0.6.0-alpha.1",
+    "@identity.com/gateway-eth-ts": "^0.7.0-alpha.1",
     "@types/chai-as-promised": "^7.1.5",
     "@types/eth-sig-util": "2",
     "chai-as-promised": "^7.1.1",

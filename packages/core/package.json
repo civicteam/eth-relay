@@ -1,6 +1,6 @@
 {
   "name": "@civic/eth-relay",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "A library encapsulating various transaction relayers on EVM chains",
   "main": "dist/index.js",
   "module": "dist/index.js",

@@ -33,8 +33,10 @@ const defaultOptions: Options = {
   schedule: "slow",
 };
 
+type ITXApiKey = string | { projectId: string; projectSecret: string };
+
 interface ITXConfig {
-  apiKey: string;
+  apiKey: ITXApiKey;
   forwarder: ForwarderConfig;
   options?: Partial<Options>;
 }
@@ -45,7 +47,7 @@ export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
   constructor(
     private readonly chainId: number,
     private readonly wallet: Wallet,
-    private readonly apiKey: string,
+    private readonly apiKey: ITXApiKey,
 
     private readonly forwarder: ForwarderConfig,
     options: Partial<Options> = {}

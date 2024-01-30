@@ -70,6 +70,10 @@ export class ITXRelayer implements Relayer<RelayResponse, ITXRelayStatus> {
       );
   }
 
+  getName(): string {
+    return "ITXRelayer";
+  }
+
   async fund(amount: BigNumber): Promise<void> {
     const tx = await this.wallet.sendTransaction({
       to: ITX_DEPOSIT_CONTRACT,

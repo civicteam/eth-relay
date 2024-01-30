@@ -64,6 +64,10 @@ describe("itx", function () {
     ).transaction();
   });
 
+  it("should return the relayer name", () => {
+    expect(relay.getName()).to.equal("ITXRelayer");
+  });
+
   it("should throw an error with an incorrect relay task Id", () => {
     return expect(relay.lookup("invalid")).to.be.rejectedWith("invalid");
   });

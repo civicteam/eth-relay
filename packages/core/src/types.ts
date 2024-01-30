@@ -12,6 +12,8 @@ export interface RelayStatus {
 }
 
 export interface Relayer<R extends RelayResponse, S extends RelayStatus> {
+  getName: () => string;
+
   send: (tx: PopulatedTransaction) => Promise<R>;
 
   lookup: (task: string) => Promise<S>;

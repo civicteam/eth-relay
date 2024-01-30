@@ -62,6 +62,10 @@ describe("gelato", function () {
     ).transaction();
   });
 
+  it("should return the relayer name", () => {
+    expect(relay.getName()).to.equal("GelatoRelayer");
+  });
+
   it("should get the relayer balance", async () => {
     const balance = await relay.getBalance();
 

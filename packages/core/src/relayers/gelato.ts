@@ -79,6 +79,10 @@ export class GelatoRelayer
       new GelatoRelayer(wallet, chainId, config.apiKey, config.forwarder);
   }
 
+  getName(): string {
+    return "GelatoRelayer";
+  }
+
   async fund(amount: BigNumber): Promise<void> {
     const oneBalance = new OneBalance({
       networkGroup: this.networkGroup,

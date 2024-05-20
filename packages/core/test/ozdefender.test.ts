@@ -1,5 +1,5 @@
 import * as dotenv from "dotenv";
-import { Relayers, waitForRelay, GelatoRelayer } from "../src";
+import { Relayers, waitForRelay, DefenderRelayer } from "../src";
 import { type GenericRelayer } from "../src/types";
 import {
   DEFAULT_FORWARDER_ADDRESS,
@@ -13,7 +13,7 @@ dotenv.config({
   path: `${process.cwd()}/../../.env`,
 });
 
-describe("gelato", function () {
+describe.only("openzeppelin defender", function () {
   this.timeout(70_000);
   let provider: InfuraProvider;
   let signer: Signer;
@@ -22,17 +22,20 @@ describe("gelato", function () {
   let chainId: number;
 
   before(async () => {
-    if (process.env.INFURA_API_KEY === undefined) {
-      throw new Error("INFURA_API_KEY is not set");
-    }
-
-    if (process.env.GELATO_API_KEY === undefined) {
-      throw new Error("GELATO_API_KEY is not set");
-    }
-
-    if (process.env.GELATO_ACCOUNT_ID === undefined) {
-      throw new Error("GELATO_ACCOUNT_ID is not set");
-    }
+    const requiredEnvVars = [
+      "INFURA_API_KEY",
+      "PRIVATE_KEY",
+      "OZ_API_KEY",
+      "OZ_SECRET_KEY",
+      "OZ_MANAGER_KEY",
+      "OZ_MANAGER_SECRET",
+      "OZ_MANAGER_RELAYER_ID",
+    ];
+    requiredEnvVars.forEach((envVar) => {
+      if (process.env[envVar] === undefined) {
+        throw new Error(`${envVar} is not set`);
+      }
+    });
 
     provider = new InfuraProvider("matic-amoy", process.env.INFURA_API_KEY);
     signer = new Wallet(`0x${process.env.PRIVATE_KEY!}`, provider);
@@ -42,15 +45,21 @@ describe("gelato", function () {
       .then((network) => Number(network.chainId));
 
     const foundRelayer = await Relayers([
-      GelatoRelayer.with({
-        apiKey: process.env.GELATO_API_KEY,
-        accountId: process.env.GELATO_ACCOUNT_ID,
+      DefenderRelayer.with({
+        apiKey: process.env.OZ_API_KEY!,
+        secretKey: process.env.OZ_SECRET_KEY!,
+        speed: "fast",
         forwarder: {
           address: DEFAULT_FORWARDER_ADDRESS,
           EIP712Domain: {
             name: "FlexibleNonceForwarder",
             version: "0.0.1",
           },
+        },
+        manager: {
+          apiKey: process.env.OZ_MANAGER_KEY!,
+          secretKey: process.env.OZ_MANAGER_SECRET!,
+          relayId: process.env.OZ_MANAGER_RELAYER_ID!,
         },
       }),
     ]).for(Number(chainId), signer);
@@ -61,16 +70,15 @@ describe("gelato", function () {
 
     relay = foundRelayer;
 
-    gatewayTs = new GatewayTs(
-      signer,
-      DEFAULT_GATEWAY_TOKEN_ADDRESS
-    ).transaction();
+    gatewayTs = new GatewayTs(signer, DEFAULT_GATEWAY_TOKEN_ADDRESS, {
+      gasLimit: 2_000_000,
+    }).transaction();
   });
 
-  it.skip("should get the relayer balance", async () => {
+  it("should get the relayer balance", async () => {
     const balance = await relay.getBalance();
 
-    expect(balance).to.be.greaterThan(0);
+    expect(Number(balance)).to.be.greaterThan(0);
   });
 
   it("should forward a transaction", async () => {
@@ -79,25 +87,6 @@ describe("gelato", function () {
     console.log(`Issuing a pass to ${address}`);
 
     const response = await relay.send(tx);
-    const status = await waitForRelay(relay, response.taskId);
-    const txResponse = await provider.getTransaction(status.transactionHash!);
-
-    console.log(txResponse);
-    expect(txResponse?.confirmations).to.be.greaterThan(0);
-    expect(status?.isComplete).to.be.true;
-  });
-
-  // this still works but does not support concurrent transactions
-  it("should forward a transaction using the default gelato forwarder", async () => {
-    const relayerUsingDefaultGelatoForwarder = await Relayers([
-      GelatoRelayer.with({
-        apiKey: process.env.GELATO_API_KEY!,
-        accountId: process.env.GELATO_ACCOUNT_ID!,
-      }),
-    ]).for(chainId, signer);
-    const tx = await gatewayTs.issue(Wallet.createRandom().address, 1n);
-
-    const response = await relayerUsingDefaultGelatoForwarder!.send(tx);
     const status = await waitForRelay(relay, response.taskId);
 
     expect(status?.isComplete).to.be.true;

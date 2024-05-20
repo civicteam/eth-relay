@@ -1,19 +1,19 @@
+import { type Signer } from "ethers";
 import {
   type Relayer,
   type RelayerBuilder,
   type RelayResponse,
   type RelayStatus,
 } from "./types";
-import { type Wallet } from "ethers";
 
 export { GelatoRelayer } from "./relayers/gelato";
-export { ITXRelayer } from "./relayers/itx";
+export { DefenderRelayer } from "./relayers/ozdefender";
 export type { RelayResponse, RelayStatus, Relayer, RelayerBuilder };
 
 interface RelayersResult {
   for: (
     chainId: number,
-    wallet: Wallet
+    signer: Signer
   ) => Promise<Relayer<RelayResponse, RelayStatus> | null>;
 }
 export const Relayers = (
@@ -30,14 +30,14 @@ export const Relayers = (
   return {
     for: async (
       chainId: number,
-      wallet: Wallet
+      signer: Signer
     ): Promise<Relayer<RelayResponse, RelayStatus> | null> => {
       if (cachedRelayerForChain[chainId] !== undefined) {
         return cachedRelayerForChain[chainId];
       }
 
       for (const relayerBuilder of relayers) {
-        const relayer = await (await relayerBuilder)(chainId, wallet);
+        const relayer = await (await relayerBuilder)(chainId, signer);
         if (await relayer.supportsChain(chainId)) {
           cachedRelayerForChain[chainId] = relayer;
           return relayer;

@@ -1,20 +1,15 @@
 import {
-  Contract,
-  type BigNumber,
-  type PopulatedTransaction,
-  type Wallet,
+  type Contract,
+  type Signer,
+  type ContractTransaction,
+  BaseContract,
+  type TypedDataDomain,
+  type PreparedTransactionRequest,
+  resolveAddress,
 } from "ethers";
 
-import { type Forwarder } from "./Forwarder";
-import {
-  type EIP712Domain,
-  type EIP712Message,
-  type EIP712TypedData,
-} from "eth-sig-util";
-import {
-  type TypedDataField,
-  type TypedDataSigner,
-} from "@ethersproject/abstract-signer";
+import { type IForwarder } from "./IForwarder";
+
 import forwarderAbi from "./forwarderAbi.json";
 
 interface Input {
@@ -23,17 +18,12 @@ interface Input {
   data: string;
 }
 
-export type StaticEIP712Domain = Omit<
-  EIP712Domain,
-  "verifyingContract" | "chainId"
->;
-
-const eip712Domain = [
-  { name: "name", type: "string" },
-  { name: "version", type: "string" },
-  { name: "chainId", type: "uint256" },
-  { name: "verifyingContract", type: "address" },
-];
+// const eip712Domain = [
+//   { name: "name", type: "string" },
+//   { name: "version", type: "string" },
+//   { name: "chainId", type: "uint256" },
+//   { name: "verifyingContract", type: "address" },
+// ];
 
 const forwardRequest = [
   { name: "from", type: "address" },
@@ -53,10 +43,14 @@ type ForwardRequest = Input & {
 const getMetaTxTypeData = (
   chainId: number,
   verifyingContract: string,
-  domain: StaticEIP712Domain
-): Omit<EIP712TypedData, "message"> => ({
+  domain: TypedDataDomain
+): {
+  types: Record<string, Array<{ name: string; type: string }>>;
+  domain: TypedDataDomain;
+  primaryType: string;
+} => ({
   types: {
-    EIP712Domain: eip712Domain,
+    // EIP712Domain: eip712Domain,
     ForwardRequest: forwardRequest,
   },
   domain: {
@@ -67,76 +61,94 @@ const getMetaTxTypeData = (
   primaryType: "ForwardRequest",
 });
 
-async function signTypedData(
-  signer: TypedDataSigner,
-  data: EIP712TypedData
-): Promise<string> {
-  const types: Record<string, TypedDataField[]> = {
-    ForwardRequest: forwardRequest,
-  };
-
-  return signer._signTypedData(data.domain, types, data.message);
-}
-
 const buildRequest = async (
-  forwarder: Forwarder,
+  forwarder: IForwarder,
   input: Input
 ): Promise<ForwardRequest> => {
   const nonce = await forwarder
     .getNonce(input.from)
-    .then((nonce: BigNumber) => nonce.toString());
+    .then((nonce: bigint) => nonce.toString());
   console.log("nonce", nonce);
   return { value: 0, gas: 2e6, nonce, ...input };
 };
 
 const buildTypedData = async (
   forwarder: Contract,
-  request: EIP712Message,
-  domain: StaticEIP712Domain
-): Promise<EIP712TypedData> => {
-  const chainId = await forwarder.provider.getNetwork().then((n) => n.chainId);
-  const typeData = getMetaTxTypeData(chainId, forwarder.address, domain);
+  request: ForwardRequest,
+  domain: TypedDataDomain
+): Promise<{
+  types: Record<string, Array<{ name: string; type: string }>>;
+  domain: TypedDataDomain;
+  primaryType: string;
+  message: ForwardRequest;
+}> => {
+  const chainId = await forwarder.runner?.provider
+    ?.getNetwork()
+    .then((n) => n.chainId);
+
+  if (chainId === undefined)
+    throw new Error(
+      "Could not get chainId from forwarder contract - add a contractrunner"
+    );
+
+  const verifyingContract = await forwarder.getAddress();
+  const typeData = getMetaTxTypeData(
+    Number(chainId),
+    verifyingContract,
+    domain
+  );
   return { ...typeData, message: request };
 };
 
 export const signMetaTxRequest = async (
-  signer: TypedDataSigner,
-  forwarder: Forwarder,
+  signer: Signer,
+  forwarder: IForwarder,
   input: Input,
-  domain: StaticEIP712Domain
+  domain: TypedDataDomain
 ): Promise<{ request: ForwardRequest; signature: string }> => {
   const request = await buildRequest(forwarder, input);
-  const toSign = await buildTypedData(forwarder, request, domain);
-  const signature = await signTypedData(signer, toSign);
+  const toSign = await buildTypedData(
+    forwarder as unknown as Contract,
+    request,
+    domain
+  );
+  const signature = await signer.signTypedData(
+    toSign.domain,
+    toSign.types,
+    toSign.message
+  );
   return { signature, request };
 };
 
 export const createEIP2771ForwardedTransaction = async (
-  tx: PopulatedTransaction,
-  forwarder: { address: string; EIP712Domain: StaticEIP712Domain },
-  wallet: Wallet
-): Promise<PopulatedTransaction> => {
+  tx: PreparedTransactionRequest,
+  forwarder: { address: string; EIP712Domain: TypedDataDomain },
+  signer: Signer
+): Promise<ContractTransaction> => {
   if (tx.data === undefined || tx.to === undefined)
     throw new Error(
-      "ITX requires a data field and to address in the transaction."
+      "Forearded Tx requires a data field and to address in the transaction."
     );
-  const forwarderContract = new Contract(
+  const forwarderContract = new BaseContract(
     forwarder.address,
     forwarderAbi
-  ).connect(wallet) as Forwarder;
+  ).connect(signer) as unknown as IForwarder;
+
+  const toAddress = await resolveAddress(tx.to);
+
   const { request, signature } = await signMetaTxRequest(
-    wallet,
+    signer,
     forwarderContract,
     {
-      from: wallet.address,
-      to: tx.to,
+      from: await signer.getAddress(),
+      to: toAddress,
       data: tx.data,
     },
     forwarder.EIP712Domain
   );
 
   const populatedForwardedTransaction =
-    await forwarderContract.populateTransaction.execute(request, signature);
+    await forwarderContract.execute.populateTransaction(request, signature);
   // ethers will set the from address on the populated transaction to the current wallet address (i.e the gatekeeper)
   // we don't want this, as the tx will be sent by some other relayer, so remove it.
   delete populatedForwardedTransaction.from;

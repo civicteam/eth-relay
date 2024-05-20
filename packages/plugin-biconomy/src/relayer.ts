@@ -5,12 +5,7 @@ import {
   type RelayStatus,
 } from "@civic/eth-relay";
 import { Biconomy } from "@biconomy/mexa";
-import {
-  type BigNumber,
-  type PopulatedTransaction,
-  type providers,
-  type Wallet,
-} from "ethers";
+import {JsonRpcProvider, PreparedTransactionRequest, Signer } from "ethers";
 
 interface BiconomyConfig {
   apiKey: string;
@@ -34,7 +29,7 @@ const BICONOMY_RESPONSE_CODES = {
 
 export class BiconomyRelayer implements Relayer<RelayResponse, RelayStatus> {
   constructor(
-    private readonly wallet: Wallet,
+    private readonly signer: Signer,
     private readonly chainId: number,
 
     private readonly biconomy: Biconomy
@@ -43,11 +38,11 @@ export class BiconomyRelayer implements Relayer<RelayResponse, RelayStatus> {
   static with(
     config: BiconomyConfig
   ): RelayerBuilder<RelayResponse, RelayStatus> {
-    return async (chainId: number, wallet: Wallet) => {
+    return async (chainId: number, signer: Signer) => {
       // hack needed because Biconomy requires passing in a web3 provider,
       // in the form of an Ethers external provider.
       // even if we have a normal Ethers one.
-      const web3provider: providers.ExternalProvider = {
+      const web3provider = {
         request: async (request: { method: string; params?: any[] }) => {
           if (request.method === "eth_signTypedData_v4") {
             if (!request.params || request.params.length < 2) {
@@ -56,13 +51,13 @@ export class BiconomyRelayer implements Relayer<RelayResponse, RelayStatus> {
             const param = request.params[1];
             console.log("***param 1", JSON.parse(param));
             console.log("types", param.types);
-            return wallet._signTypedData(
+            return signer.signTypedData(
               param.domain,
               param.types,
               param.message
             );
           }
-          return (wallet.provider as providers.JsonRpcProvider).send(
+          return (signer.provider as JsonRpcProvider).send(
             request.method,
             request.params ?? []
           );
@@ -78,15 +73,15 @@ export class BiconomyRelayer implements Relayer<RelayResponse, RelayStatus> {
       await biconomy.init();
       console.log("Ended biconomy init...");
 
-      return new BiconomyRelayer(wallet, chainId, biconomy);
+      return new BiconomyRelayer(signer, chainId, biconomy);
     };
   }
 
-  async fund(amount: BigNumber): Promise<void> {
+  async fund(amount: bigint): Promise<void> {
     throw new Error("Method not implemented for Biconomy.");
   }
 
-  async getBalance(): Promise<BigNumber> {
+  async getBalance(): Promise<bigint> {
     throw new Error("Method not implemented for Biconomy.");
   }
 
@@ -105,7 +100,7 @@ export class BiconomyRelayer implements Relayer<RelayResponse, RelayStatus> {
     };
   }
 
-  async send(tx: PopulatedTransaction): Promise<RelayResponse> {
+  async send(tx: PreparedTransactionRequest): Promise<RelayResponse> {
     if (tx.data === undefined || tx.to === undefined)
       throw new Error(
         "Gelato requires a data field and to address in the transaction."
@@ -117,7 +112,7 @@ export class BiconomyRelayer implements Relayer<RelayResponse, RelayStatus> {
       data: tx.data,
       to: tx.to,
       value: tx.value,
-      from: this.wallet.address,
+      from: await this.signer.getAddress(),
       signatureType: "EIP712_SIGN",
     };
 
@@ -139,7 +134,7 @@ export class BiconomyRelayer implements Relayer<RelayResponse, RelayStatus> {
     });
 
     // or should we use this?
-    // return this.biconomy.sendTransaction(this.biconomy, this.wallet.address, tx.data);
+    // return this.biconomy.sendTransaction(this.biconomy, this.signer.address, tx.data);
   }
 
   async supportsChain(chainId: number): Promise<boolean> {

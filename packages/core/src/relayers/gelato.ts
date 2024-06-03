@@ -29,8 +29,6 @@ export enum NetworkGroup {
   mainnets = "mainnets",
   testnets = "testnets",
 }
-// const API_URL = "https://api.gelato.digital";
-// const POLYGON_USDC_TOKEN_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
 
 type GelatoRelayStatus = RelayStatus & Partial<TransactionStatusResponse>;
 
@@ -81,32 +79,18 @@ export class GelatoRelayer
       new GelatoRelayer(signer, chainId, config.apiKey, config.forwarder);
   }
 
-  async fund(amount: bigint): Promise<void> {
-    // const oneBalance = new OneBalance({
-    //   networkGroup: this.networkGroup,
-    //   url: API_URL,
-    // });
-    // if (this.networkGroup === NetworkGroup.mainnets) {
-    //   return oneBalance
-    //     .depositToken(this.signer, POLYGON_USDC_TOKEN_ADDRESS, amount)
-    //     .then(() => undefined);
-    // }
-    //
-    // return oneBalance.depositNative(this.wallet, amount).then(() => undefined);
+  /**
+   *  @deprecated - The 1balance gelato sdk is still using ethers 5.
+   */
+  async fund(_amount: bigint): Promise<void> {
+    throw new Error("Unsupported - fund using the gelato 1balance UI");
   }
 
+  /**
+   *  @deprecated - The 1balance gelato sdk is still using ethers 5.
+   */
   async getBalance(): Promise<bigint> {
-    // const balanceResponse = await new OneBalance({
-    //   networkGroup: this.networkGroup,
-    //   url: API_URL,
-    // }).getSponsor().then(r => r?.mainBalance);
-    //
-    // if (!balanceResponse)
-    //   throw new Error("Null response from gelato on getSponsorBalance.");
-    //
-    // return BigNumber.from(balanceResponse.remainingBalance);
-
-    return 0n;
+    throw new Error("Unsupported - check balance using the gelato 1balance UI");
   }
 
   async lookup(task: string): Promise<GelatoRelayStatus> {

@@ -18,13 +18,6 @@ interface Input {
   data: string;
 }
 
-// const eip712Domain = [
-//   { name: "name", type: "string" },
-//   { name: "version", type: "string" },
-//   { name: "chainId", type: "uint256" },
-//   { name: "verifyingContract", type: "address" },
-// ];
-
 const forwardRequest = [
   { name: "from", type: "address" },
   { name: "to", type: "address" },
@@ -50,7 +43,6 @@ const getMetaTxTypeData = (
   primaryType: string;
 } => ({
   types: {
-    // EIP712Domain: eip712Domain,
     ForwardRequest: forwardRequest,
   },
   domain: {

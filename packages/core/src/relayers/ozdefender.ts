@@ -17,6 +17,7 @@ import {
 interface DefenderConfig {
   apiKey: string;
   secretKey: string;
+  chainId: number;
   forwarder: ForwarderConfig;
   speed?: Speed;
   // Used to manage the relayer - fund, get balance etc
@@ -73,20 +74,22 @@ export class DefenderRelayer
   static with(
     config: DefenderConfig
   ): RelayerBuilder<RelayResponse, RelayStatus> {
-    return async (chainId: number, signer: Signer) =>
-      new DefenderRelayer(
+    return async (chainId: number, signer: Signer) => {
+      if (chainId !== config.chainId) throw new Error("Chain ID mismatch");
+      return new DefenderRelayer(
         signer,
-        chainId,
+        config.chainId,
         config.forwarder,
         config.apiKey,
         config.secretKey,
         config.speed,
         config.manager
       );
+    };
   }
 
-  async fund(amount: bigint): Promise<void> {
-    // TODO
+  async fund(_amount: bigint): Promise<void> {
+    throw new Error("Unsupported - fund the fee payer wallet directly");
   }
 
   async getBalance(): Promise<bigint> {
@@ -151,7 +154,6 @@ export class DefenderRelayer
   }
 
   async supportsChain(chainId: number): Promise<boolean> {
-    return true;
-    // return this.relayer.isNetworkSupported(BigInt(chainId));
+    return this.chainId === chainId;
   }
 }

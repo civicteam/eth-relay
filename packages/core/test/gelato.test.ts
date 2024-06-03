@@ -67,6 +67,7 @@ describe("gelato", function () {
     ).transaction();
   });
 
+  // no longer supported
   it.skip("should get the relayer balance", async () => {
     const balance = await relay.getBalance();
 

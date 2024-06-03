@@ -49,6 +49,7 @@ describe.only("openzeppelin defender", function () {
         apiKey: process.env.OZ_API_KEY!,
         secretKey: process.env.OZ_SECRET_KEY!,
         speed: "fast",
+        chainId,
         forwarder: {
           address: DEFAULT_FORWARDER_ADDRESS,
           EIP712Domain: {

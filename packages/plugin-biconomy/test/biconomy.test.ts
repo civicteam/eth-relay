@@ -1,6 +1,6 @@
 import * as dotenv from "dotenv";
 import { Relayers, waitForRelay } from "../../core/src";
-import { providers, Wallet } from "ethers";
+import { InfuraProvider, type Signer, Wallet } from "ethers";
 import { type GenericRelayer } from "../../core/src/types";
 import {
   DEFAULT_GATEWAY_TOKEN_ADDRESS,
@@ -10,17 +10,14 @@ import { type GatewayTsTransaction } from "@identity.com/gateway-eth-ts/dist/ser
 import { expect } from "chai";
 import { BiconomyRelayer } from "../src/relayer";
 
-console.log(__dirname);
-console.log(process.cwd());
-
 dotenv.config({
   path: `${process.cwd()}/../../.env`,
 });
 
 describe("biconomy", function () {
   this.timeout(70_000);
-  let provider: providers.InfuraProvider;
-  let wallet: Wallet;
+  let provider: InfuraProvider;
+  let signer: Signer;
   let relay: GenericRelayer;
   let gatewayTs: GatewayTsTransaction;
 
@@ -33,23 +30,16 @@ describe("biconomy", function () {
       throw new Error("BICONOMY_API_KEY is not set");
     }
 
-    // Use mumbai as it's fast
-    provider = new providers.InfuraProvider(
-      "maticmum",
-      process.env.INFURA_API_KEY
-    );
-    wallet = new Wallet(`0x${process.env.PRIVATE_KEY!}`, provider);
-
-    provider.on("debug", (...args) => {
-      console.log("PROVIDER DEBUG", ...args);
-    });
+    // Use amoy as it's fast
+    provider = new InfuraProvider("matic-amoy", process.env.INFURA_API_KEY);
+    signer = new Wallet(`0x${process.env.PRIVATE_KEY!}`, provider);
 
     const foundRelayer = await Relayers([
       BiconomyRelayer.with({
         apiKey: process.env.BICONOMY_API_KEY,
         contractAddress: DEFAULT_GATEWAY_TOKEN_ADDRESS,
       }),
-    ]).for(provider.network.chainId, wallet);
+    ]).for(80002, signer);
 
     if (!foundRelayer) {
       throw new Error("No relayer found");
@@ -58,7 +48,7 @@ describe("biconomy", function () {
     relay = foundRelayer;
 
     gatewayTs = new GatewayTs(
-      wallet,
+      signer,
       DEFAULT_GATEWAY_TOKEN_ADDRESS
     ).transaction();
   });

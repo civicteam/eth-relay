@@ -1,4 +1,4 @@
 {
   "spec": "test/**/*.ts",
-  "loader": "tsx"
+  "import": "tsx"
 }

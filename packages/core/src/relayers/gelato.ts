@@ -5,18 +5,20 @@ import {
   type RelayResponse,
   type RelayStatus,
 } from "../types";
-import { BigNumber, type PopulatedTransaction, type Wallet } from "ethers";
+import { createEIP2771ForwardedTransaction } from "../lib/metatx";
+import {
+  resolveAddress,
+  type PreparedTransactionRequest,
+  type Signer,
+} from "ethers";
 import {
   GelatoRelay,
-  type SponsoredCallRequest,
-  type SponsoredCallERC2771Request,
   type TransactionStatusResponse,
 } from "@gelatonetwork/relay-sdk";
-import { OneBalance } from "@gelatonetwork/1balance-sdk";
-import { createEIP2771ForwardedTransaction } from "../lib/metatx";
 
 interface GelatoConfig {
   apiKey: string;
+  accountId: string;
   // Setting a custom forwarder uses gelato.sponsoredCall instead of gelato.sponsoredCallERC2771
   // Gelato's default forwarder does not support concurrent requests.
   forwarder?: ForwarderConfig;
@@ -27,8 +29,6 @@ export enum NetworkGroup {
   mainnets = "mainnets",
   testnets = "testnets",
 }
-const API_URL = "https://api.gelato.digital";
-const POLYGON_USDC_TOKEN_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
 
 type GelatoRelayStatus = RelayStatus & Partial<TransactionStatusResponse>;
 
@@ -39,7 +39,7 @@ export class GelatoRelayer
 
   private readonly gelato: GelatoRelay;
   constructor(
-    private readonly wallet: Wallet,
+    private readonly signer: Signer,
     private readonly chainId: number,
 
     private readonly apiKey: string,
@@ -75,34 +75,22 @@ export class GelatoRelayer
   static with(
     config: GelatoConfig
   ): RelayerBuilder<RelayResponse, GelatoRelayStatus> {
-    return async (chainId: number, wallet: Wallet) =>
-      new GelatoRelayer(wallet, chainId, config.apiKey, config.forwarder);
+    return async (chainId: number, signer: Signer) =>
+      new GelatoRelayer(signer, chainId, config.apiKey, config.forwarder);
   }
 
-  async fund(amount: BigNumber): Promise<void> {
-    const oneBalance = new OneBalance({
-      networkGroup: this.networkGroup,
-      url: API_URL,
-    });
-    if (this.networkGroup === NetworkGroup.mainnets) {
-      return oneBalance
-        .depositToken(this.wallet, POLYGON_USDC_TOKEN_ADDRESS, amount)
-        .then(() => undefined);
-    }
-
-    return oneBalance.depositNative(this.wallet, amount).then(() => undefined);
+  /**
+   *  @deprecated - The 1balance gelato sdk is still using ethers 5.
+   */
+  async fund(_amount: bigint): Promise<void> {
+    throw new Error("Unsupported - fund using the gelato 1balance UI");
   }
 
-  async getBalance(): Promise<BigNumber> {
-    const balanceResponse = await new OneBalance({
-      networkGroup: this.networkGroup,
-      url: API_URL,
-    }).getSponsorBalance(this.wallet.address);
-
-    if (!balanceResponse)
-      throw new Error("Null response from gelato on getSponsorBalance.");
-
-    return BigNumber.from(balanceResponse.remainingBalance);
+  /**
+   *  @deprecated - The 1balance gelato sdk is still using ethers 5.
+   */
+  async getBalance(): Promise<bigint> {
+    throw new Error("Unsupported - check balance using the gelato 1balance UI");
   }
 
   async lookup(task: string): Promise<GelatoRelayStatus> {
@@ -150,24 +138,28 @@ export class GelatoRelayer
     }
   }
 
-  async send(tx: PopulatedTransaction): Promise<RelayResponse> {
+  async send(tx: PreparedTransactionRequest): Promise<RelayResponse> {
     if (!this.forwarder) {
       if (tx.data === undefined || tx.to === undefined) {
         throw new Error(
           "Transaction is missing data or to address - cannot be sent to Gelato"
         );
       }
+
+      const toAddress = await resolveAddress(tx.to);
+
       // Use Gelato's forwarder - NOTE! This does not support concurrent requests.
-      const request: SponsoredCallERC2771Request = {
-        chainId: this.chainId,
-        target: tx.to,
+      const request = {
+        chainId: BigInt(this.chainId),
+        target: toAddress,
         data: tx.data,
-        user: this.wallet.address,
+        user: await this.signer.getAddress(),
       };
       // send relayRequest to Gelato Relay API
       return this.gelato.sponsoredCallERC2771(
         request,
-        this.wallet,
+        // Gelato is fixing the ethers version to 6.7.0 which cannot be hoisted without fixing the ethers version globally
+        this.signer as any,
         this.apiKey
       );
     }
@@ -177,13 +169,13 @@ export class GelatoRelayer
     const metaTx = await createEIP2771ForwardedTransaction(
       tx,
       this.forwarder,
-      this.wallet
+      this.signer
     );
     if (metaTx.data === undefined) throw new Error("Invalid metaTx data");
 
     // create a SponsoredCallRequest pointing to that forwarder
-    const request: SponsoredCallRequest = {
-      chainId: this.chainId,
+    const request = {
+      chainId: BigInt(this.chainId),
       target: this.forwarder.address,
       data: metaTx.data || "",
     };
@@ -193,6 +185,6 @@ export class GelatoRelayer
   }
 
   async supportsChain(chainId: number): Promise<boolean> {
-    return this.gelato.isNetworkSupported(chainId);
+    return this.gelato.isNetworkSupported(BigInt(chainId));
   }
 }

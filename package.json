@@ -32,5 +32,8 @@
     "tsx": "^3.12.3",
     "typescript": "*"
   },
-  "name": "eth-relay"
+  "name": "eth-relay",
+  "resolutions": {
+    "ethers": "6.12.1"
+  }
 }

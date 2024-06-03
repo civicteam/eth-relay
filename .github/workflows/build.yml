@@ -1,0 +1,26 @@
+name: Build
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      INFURA_API_KEY: ${{ secrets.INFURA_API_KEY }}
+      GELATO_API_KEY: ${{ secrets.GELATO_API_KEY }}
+      GELATO_ACCOUNT_ID: ${{ secrets.GELATO_ACCOUNT_ID }}
+      BICONOMY_API_KEY: ${{ secrets.BICONOMY_API_KEY }}
+      OZ_API_KEY: ${{ secrets.OZ_API_KEY }}
+      OZ_SECRET_KEY: ${{ secrets.OZ_SECRET_KEY }}
+      OZ_MANAGER_KEY: ${{ secrets.OZ_MANAGER_KEY }}
+      OZ_MANAGER_SECRET: ${{ secrets.OZ_MANAGER_SECRET }}
+      OZ_MANAGER_RELAYER_ID: ${{ secrets.OZ_MANAGER_RELAYER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: yarn install --frozen-lockfile
+      - run: yarn lint
+      - run: yarn test
+      - run: yarn build

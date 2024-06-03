@@ -5,7 +5,11 @@ import {
   type RelayStatus,
 } from "@civic/eth-relay";
 import { Biconomy } from "@biconomy/mexa";
-import {JsonRpcProvider, PreparedTransactionRequest, Signer } from "ethers";
+import {
+  type JsonRpcProvider,
+  type PreparedTransactionRequest,
+  type Signer,
+} from "ethers";
 
 interface BiconomyConfig {
   apiKey: string;
